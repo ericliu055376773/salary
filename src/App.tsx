@@ -189,7 +189,6 @@ export default function App() {
           <div className="space-y-8">
             {role === 'admin' ? (
               <>
-                {/* 修改點：將並排的網格 (grid-cols-3) 改為上下滿版的 Flex 容器 (flex-col) */}
                 <div className="flex flex-col gap-6 mb-6">
                   <AdminRulesForm rules={rules} showToast={showToast} setConfirmDialog={setConfirmDialog} />
                   <AdminPositionsForm positions={positions} showToast={showToast} setConfirmDialog={setConfirmDialog} />
@@ -293,6 +292,9 @@ const calculateSalaryCore = (inputs, currentRules) => {
   const pensionNum = Number(inputs.pension) || 0;
   const statutoryDeduction = laborNum + healthNum + pensionNum;
 
+  // 動態套用使用者當前輸入的基數（包含自動計算的天數）
+  const baseDays = inputs.baseDays !== undefined ? inputs.baseDays : getDaysInMonth(inputs.month);
+
   if (isPartTime) {
     const ptSalary = Number(inputs.partTimeSalary) || 0;
     const ptLate = Number(inputs.partTimeLatePenalty) || 0;
@@ -305,13 +307,12 @@ const calculateSalaryCore = (inputs, currentRules) => {
       deductions: { lateDeduction: ptLate, attendanceDeduction: ptLate, statutoryDeduction },
       grossSalary,
       totalDeduction: ptLate + statutoryDeduction,
-      netSalary
+      netSalary,
+      rules: { baseDays } // 兼職也統一回傳 baseDays 避免 TypeError
     };
   }
 
   const { A, B, C, D, personalLeave, sickLeave, lateMinutes } = inputs;
-  
-  const baseDays = inputs.baseDays !== undefined ? inputs.baseDays : getDaysInMonth(inputs.month);
   const dailyHours = inputs.dailyHours !== undefined ? inputs.dailyHours : (currentRules.dailyHours || 8);
   const minsPerHour = inputs.minsPerHour !== undefined ? inputs.minsPerHour : (currentRules.minsPerHour || 60);
   const lateGraceMins = inputs.lateGraceMins !== undefined ? inputs.lateGraceMins : (currentRules.lateGraceMins || 0);
@@ -524,7 +525,7 @@ function EmployeeEstimator({ rules, positions }) {
 
         <p className="text-sm text-slate-500 mb-6 flex items-start bg-blue-50 p-3 rounded-lg border border-blue-100">
           <Info className="w-5 h-5 mr-2 text-blue-500 flex-shrink-0" />
-          在此輸入您的請假與出勤狀況，系統將自動擷取該月實際天數（{result.rules.baseDays}天）並套用最新規則進行試算。
+          在此輸入您的請假與出勤狀況，系統將自動擷取該月實際天數（{result.rules?.baseDays || 30}天）並套用最新規則進行試算。
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
@@ -543,6 +544,7 @@ function EmployeeEstimator({ rules, positions }) {
           )}
         </div>
 
+        {/* 法定扣除額 (前台限制編輯) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 px-4 bg-slate-50/70 p-4 rounded-xl border border-slate-100">
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">勞保自付額 (依職位固定)</label>
